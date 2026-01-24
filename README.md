@@ -37,10 +37,6 @@ Dataset Loaded:
 |66898691|21535859 |May Gift|9|2023-03-10 19:20:11|8.30|380841810|United Kingdom|
 |59508416|93622551 |Study Gift|6|2023-06-07 21:03:18|36.64|150595719 |United Kingdom|
 
-# Reference Date for Recency Calculation
-# If data were live, reference date = today; here, we take the day after last transaction
-reference_date = data['InvoiceDate'].max() + timedelta(days=1)
-
 
 #### Create RFM Table
 
