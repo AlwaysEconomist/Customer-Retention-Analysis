@@ -25,29 +25,8 @@ RFM stands for Recency, Frequency, and Monetary. It’s a marketing analysis too
 
 By combining these three metrics, you can group customers into different segments and develop targeted strategies for each group.
 
-#### Import the necessary libraries
+### Import the necessary libraries, load and inspect the dataset
 
-```
-import pandas as pd
-from datetime import datetime as dt, timedelta
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.colors
-
-```
-
-#### Load and inspect the dataset
-
-```
-data = pd.read_csv(r"C:\Users\phabr\Downloads\online_retail_rfm_50k.csv")
-
-print(" Dataset Loaded")
-print(data.head())       # Display first 5 rows
-print(data.tail())       # Display last 5 rows
-print(data.info())       # Data types + missing values
-print(data.describe())   # Numerical statistics
-
-```
 Dataset Loaded:
 
 |InvoiceNo|StockCode|Description      |Quantity|InvoiceDate           |UnitPrice|CustomerID|Country            |
@@ -58,29 +37,10 @@ Dataset Loaded:
 |66898691|21535859 |May Gift|9|2023-03-10 19:20:11|8.30|380841810|United Kingdom|
 |59508416|93622551 |Study Gift|6|2023-06-07 21:03:18|36.64|150595719 |United Kingdom|
 
-#### Data Cleaning and Preparation
-
-```
-# Remove rows with missing CustomerID
-data.dropna(subset=['CustomerID'], inplace=True)
-
-# Ensure InvoiceDate is in datetime format
-data['InvoiceDate'] = pd.to_datetime(data['InvoiceDate'])
-
-# Remove duplicate InvoiceNo entries (if any)
-data.drop_duplicates(subset=['InvoiceNo'], inplace=True)
-
-# Calculate total amount per transaction
-data['TotalAmount'] = data['Quantity'] * data['UnitPrice']
-
-print("\n After cleaning:")
-print(data.info())
-
 # Reference Date for Recency Calculation
 # If data were live, reference date = today; here, we take the day after last transaction
 reference_date = data['InvoiceDate'].max() + timedelta(days=1)
 
-```
 
 #### Create RFM Table
 
@@ -91,26 +51,7 @@ To perform the analysis, we calculate Recency, Frequency, and Monetary values fo
  - Frequency: Count the total number of orders per customer.  
  - Monetary: Sum the total transaction amounts for each customer.
 
-
-```
-rfm = data.groupby('CustomerID').agg({
-    'InvoiceDate': lambda x: (reference_date - x.max()).days,  # Recency: days since last purchase
-    'InvoiceNo': 'count',                                      # Frequency: number of purchases
-    'TotalAmount': 'sum'                                       # Monetary: total spend
-})
-
-# Rename columns for clarity
-rfm.rename(
-    columns={
-        'InvoiceDate': 'Recency',
-        'InvoiceNo': 'Frequency',
-        'TotalAmount': 'Monetary'
-    },
-    inplace=True
-)
-
-```
-RFM Table:
+#### RFM Table:
 
 |CustomerID|Recency|Frequency|Monetary|
 |--------|--------|--------|--------|
@@ -127,65 +68,8 @@ Now, we’ll transform the raw RFM values into scores (1-4) to create customer s
   - Recency: A lower Recency value (meaning a more recent purchase) gets a higher score. So, customers in the first quartile (least recent) get a score of 1, while those in the last quartile (most recent) get a score of 4.
   - Frequency and Monetary: The logic is reversed. A higher Frequency or Monetary value gets a higher score. Customers in the first quartile get a score of 1, while those in the last quartile get a score of 4.
 
-Here’s how we can segment our customers:
-
-```
-# Calculate Quantiles
-
-quantiles = rfm.quantile(q=[0.25, 0.50, 0.75])
-
-def RScore(x, p, d):
-    # Assign R, F, or M score based on quantiles
-    if p == 'Recency':  # Lower recency = better score
-        if x <= d[p][0.25]:
-            return 4
-        elif x <= d[p][0.50]:
-            return 3
-        elif x <= d[p][0.75]:
-            return 2
-        else:
-            return 1
-    else:  # Higher F and M = better score
-        if x <= d[p][0.25]:
-            return 1
-        elif x <= d[p][0.50]:
-            return 2
-        elif x <= d[p][0.75]:
-            return 3
-        else:
-            return 4
-
-
-# Apply R, F, M scoring
-
-rfm['R'] = rfm['Recency'].apply(RScore, args=('Recency', quantiles,))
-rfm['F'] = rfm['Frequency'].apply(RScore, args=('Frequency', quantiles,))
-rfm['M'] = rfm['Monetary'].apply(RScore, args=('Monetary', quantiles,))
-
-# Create combined segment & score
-rfm['RFM_Segment'] = rfm['R'].astype(str) + rfm['F'].astype(str) + rfm['M'].astype(str)
-rfm['RFM_Score'] = rfm[['R', 'F', 'M']].sum(axis=1)
-
-```
 
 #### Assign segment labels (High, Mid, Low value customers)
-
-```
-def assign_segment(score):
-    #Label customers based on RFM score
-    if score < 5:
-        return 'Low Value'
-    elif score < 9:
-        return 'Mid Value'
-    else:
-        return 'High Value'
-
-rfm['RFM_Segment_Labels'] = rfm['RFM_Score'].apply(assign_segment)
-
-print("\n RFM Segment Labels Assigned")
-print(rfm.head())
-
-```
 
 RFM Segment Labels Assigned:
 
@@ -197,26 +81,6 @@ RFM Segment Labels Assigned:
 |101018341 |3|13| 5300.86|4|1|1|411|6|Mid Value|
 |101210606|4|17|9254.03|4|3|3|433|10|High Value|
 
-
-#### Customers Distribution by Segment and Visualization - Bar Chart
-
-```
-segment_counts = rfm['RFM_Segment_Labels'].value_counts().reset_index()
-segment_counts.columns = ['RFM_Segment', 'Count']
-segment_counts = segment_counts.sort_values('RFM_Segment')
-
-fig_bar = px.bar(
-    segment_counts,
-    x='RFM_Segment',
-    y='Count',
-    title='Customer Distribution by RFM Segment',
-    labels={'RFM_Segment': 'RFM Segment', 'Count': 'Number of Customers'},
-    color='RFM_Segment',
-    color_discrete_sequence=px.colors.qualitative.Pastel
-)
-fig_bar.show()
-
-```
 
 ## Findings and Insights
 
